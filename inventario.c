@@ -3,10 +3,15 @@
 #include <stdlib.h>
 #define CAPACIDADE_MAXIMA 10
 
+int comparador_sequencial = 0; // comparadores para analise futuras
+int comparador_binario = 0;
+
 typedef struct
 {
-    int id;        // identificador do item
-    char nome[50]; // nome do item
+    int id;         // identificador do item
+    char nome[50];  // nome do item
+    char tipo[20];  // tipo de item
+    int quantidade; // quantidade do mesmo item
 } Item;
 
 typedef struct
@@ -26,6 +31,46 @@ typedef struct
     No *inicio;     // ponteiro aponta pra primeira capsula
     int quantidade; // quantidade de itens
 } MochilaLista;
+
+// chamado de bublle sort, ele ordena meu vetor de acordo com a tabela ASCII
+void ordenarVetor(MochilaVetor *m)
+{
+    for (int i = 0; i < m->quantidade - 1; i++)
+    {
+        for (int j = 0; j < m->quantidade - i - 1; j++)
+        {
+            if (strcmp(m->itens[j].nome, m->itens[j + 1].nome) > 0)
+            {
+                Item temp = m->itens[j];
+                m->itens[j] = m->itens[j + 1];
+                m->itens[j + 1] = temp;
+            }
+        }
+    }
+    printf("\n Mochila (vetor) ordenada por nome\n");
+}
+
+int buscaBinariaVetor(MochilaVetor *m, char *nome_buscado)
+{
+    comparador_binario = 0;
+    int esquerda = 0;
+    int direita = m->quantidade - 1;
+
+    while (esquerda <= direita)
+    {
+        comparador_binario++;
+        int meio = esquerda + (direita - esquerda) / 2;
+        int res = strcmp(m->itens[meio].nome, nome_buscado);
+
+        if (res == 0)
+            return meio; // encontrou
+        if (res < 0)
+            esquerda = meio + 1; // busca na metade direita
+        else
+            direita = meio - 1; // busca na metade esquerda
+    }
+    return -1;
+}
 
 //
 //
@@ -75,19 +120,14 @@ void listar_lista(MochilaLista *mochila)
 
 int buscar_lista_nome(MochilaLista *mochila, const char *nome_buscado)
 {
+    comparador_sequencial = 0;
     No *atual = mochila->inicio;
-    int contador_slot = 1;
-
     while (atual != NULL)
     {
+        comparador_sequencial++;
         if (strcmp(atual->dado.nome, nome_buscado) == 0)
-        {
-            printf("\n busca magica: sucesso! '%s' encontrado no slot magico %d (ID: %d)\n", nome_buscado, contador_slot, atual->dado.id);
             return 1;
-        }
-        // se nao for o item buscado, ele pula para o proximo
         atual = atual->proximo;
-        contador_slot++;
     }
     printf("\n busca magica: o item '%s' nao esta na mochila magica\n", nome_buscado);
     return 0;
@@ -109,22 +149,30 @@ int remover_lista(MochilaLista *mochila, int id_para_remover)
         anterior = atual;       // o anterior da um passo e fica onde o atual estava
         atual = atual->proximo; // o atual pula para a proxima capsula
     }
+
     // se o atual virar NULL , o item nao foi encontrado
     if (atual == NULL)
     {
-        printf("A busca falhou, o item %d  nao encontrado", id_para_remover);
+        printf("A busca falhou, o item %d  nao encontrado\n", id_para_remover);
         return 0;
     }
+
     if (anterior == NULL)
     {
         mochila->inicio = atual->proximo; // aogra a mochila aponta para o segundo item
     }
-    printf("O item %s com id  %d foi destruido", atual->dado.nome, id_para_remover);
-    free(atual);  //item apagado
+    else
+    {
+        anterior->proximo = atual->proximo;
+    }
+
+    printf("O item %s com id  %d foi destruido\n", atual->dado.nome, id_para_remover);
+    free(atual); // item apagado
     mochila->quantidade--;
 
     return 1;
 }
+//
 //
 //
 //
@@ -135,7 +183,7 @@ int inserir_vetor(MochilaVetor *mochila, Item novo_item)
     // verifica se tem espaço
     if (mochila->quantidade >= CAPACIDADE_MAXIMA)
     {
-        printf("A mochila esta cheia. Nao ha espaco para '%s\n", novo_item.nome);
+        printf("A mochila esta cheia. Nao ha espaco para '%s'\n", novo_item.nome);
         return 0;
     }
     // insere na pisiçao vazia
@@ -165,12 +213,13 @@ void listar_vetor(MochilaVetor *mochila)
 
 int buscar_por_nome(MochilaVetor *mochila, const char *nome_buscado)
 {
+    comparador_sequencial = 0; // Reseta antes de começar
     for (int i = 0; i < mochila->quantidade; i++)
     {
+        comparador_sequencial++; // Conta cada comparação do strcmp
         if (strcmp(mochila->itens[i].nome, nome_buscado) == 0)
         {
-            printf("\nSucesso '%s' foi encontrado no slot %d (ID: %d)\n", nome_buscado, i + 1, mochila->itens[i].id);
-            return i; // retorna a posiçao do item
+            return i;
         }
     }
 
@@ -194,7 +243,7 @@ int remover_vetor(MochilaVetor *mochila, int id_para_remover)
 
     if (indice_buraco == -1)
     {
-        printf("ERRO: o item ID %d nao esta na mochila", id_para_remover);
+        printf("ERRO: o item ID %d nao esta na mochila\n", id_para_remover);
         return 0;
     }
 
@@ -212,7 +261,6 @@ int remover_vetor(MochilaVetor *mochila, int id_para_remover)
 
 int main()
 {
-    // criação da mochila e inicializando vazia
     MochilaVetor minha_mochila;
     minha_mochila.quantidade = 0;
 
@@ -220,38 +268,114 @@ int main()
     mochila_magica.inicio = NULL;
     mochila_magica.quantidade = 0;
 
-    // criaçao dos itens
-    Item item1 = {101, "espada de madeira"};
-    Item item2 = {102, "pocao de cura"};
-    Item item3 = {103, "escudo de madeira"};
+    int opcao, estrutura;
+    Item novo;
+    char nome_busca[50];
+    int id_remover;
 
-    printf("--- Pegando itens ---\n");
-    inserir_vetor(&minha_mochila, item1);
-    inserir_vetor(&minha_mochila, item2);
-    inserir_vetor(&minha_mochila, item3);
+    do
+    {
+        printf("\n===== MENU =====\n");
+        printf("1 - Inserir item\n");
+        printf("2 - Listar itens\n");
+        printf("3 - Buscar item por nome\n");
+        printf("4 - Remover item\n");
+        printf("5 - Ordenar vetor (necessario para busca binaria)\n");
+        printf("0 - Sair\n");
+        printf("Escolha: ");
+        scanf("%d", &opcao);
 
-    listar_vetor(&minha_mochila);
+        printf("\nEscolha a estrutura:\n");
+        printf("1 - Mochila (Vetor)\n");
+        printf("2 - Mochila Magica (Lista)\n");
+        printf("Opcao: ");
+        scanf("%d", &estrutura);
 
-    buscar_por_nome(&minha_mochila, "pocao de cura");
-    buscar_por_nome(&minha_mochila, "cajado simples");
+        switch (opcao)
+        {
+        case 1:
+            printf("ID: ");
+            scanf("%d", &novo.id);
 
-    printf("\n--- bebendo a pocao ---\n");
-    remover_vetor(&minha_mochila, 102);
-    listar_vetor(&minha_mochila);
+            printf("Nome: ");
+            scanf(" %[^\n]", novo.nome);
 
-    printf("\n\n-----APARTIR DAQUI REFERENTE A MOCHILA MAGICA-----\n\n");
+            printf("Tipo: ");
+            scanf(" %[^\n]", novo.tipo);
 
-    printf("\n---guardando itens na mochila magica---\n");
-    inserir_lista_inicio(&mochila_magica, item1);
-    inserir_lista_inicio(&mochila_magica, item2);
-    inserir_lista_inicio(&mochila_magica, item3);
+            printf("Quantidade: ");
+            scanf("%d", &novo.quantidade);
 
-    listar_lista(&mochila_magica);
+            if (estrutura == 1)
+                inserir_vetor(&minha_mochila, novo);
+            else
+                inserir_lista_inicio(&mochila_magica, novo);
+            break;
 
-    buscar_lista_nome(&mochila_magica, "pocao de cura");
-    buscar_lista_nome(&mochila_magica, "anel de forca");
-    remover_lista(&mochila_magica, 102);
-    listar_lista(&mochila_magica);
+        case 2:
+            if (estrutura == 1)
+                listar_vetor(&minha_mochila);
+            else
+                listar_lista(&mochila_magica);
+            break;
+
+        case 3:
+            printf("Digite o nome do item: ");
+            scanf(" %[^\n]", nome_busca);
+
+            if (estrutura == 1)
+            {
+                int pos = buscar_por_nome(&minha_mochila, nome_busca);
+                printf("Comparacoes (busca sequencial): %d\n", comparador_sequencial);
+
+                if (pos != -1)
+                    printf("Encontrado na posicao %d\n", pos);
+
+                if (minha_mochila.quantidade > 0)
+                {
+                    int pos_bin = buscaBinariaVetor(&minha_mochila, nome_busca);
+                    printf("Comparacoes (busca binaria): %d\n", comparador_binario);
+
+                    if (pos_bin != -1)
+                        printf("Encontrado (binaria) na posicao %d\n", pos_bin);
+                }
+            }
+            else
+            {
+                int achou = buscar_lista_nome(&mochila_magica, nome_busca);
+                printf("Comparacoes (lista sequencial): %d\n", comparador_sequencial);
+
+                if (achou)
+                    printf("Item encontrado na lista!\n");
+            }
+            break;
+
+        case 4:
+            printf("Digite o ID para remover: ");
+            scanf("%d", &id_remover);
+
+            if (estrutura == 1)
+                remover_vetor(&minha_mochila, id_remover);
+            else
+                remover_lista(&mochila_magica, id_remover);
+            break;
+
+        case 5:
+            if (estrutura == 1)
+                ordenarVetor(&minha_mochila);
+            else
+                printf("Ordenacao nao se aplica a lista\n");
+            break;
+
+        case 0:
+            printf("Saindo...\n");
+            break;
+
+        default:
+            printf("Opcao invalida\n");
+        }
+
+    } while (opcao != 0);
 
     return 0;
 }
